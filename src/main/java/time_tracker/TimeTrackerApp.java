@@ -8,18 +8,15 @@ import javafx.collections.ObservableList;
 import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
-import javafx.scene.control.TextField;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
 import javafx.stage.Stage;
+import time_tracker.component.Interval;
 
-import java.util.List;
 import java.util.stream.Collectors;
-
-import static java.util.stream.Collectors.toList;
 
 public class TimeTrackerApp extends Application {
 
@@ -34,7 +31,7 @@ public class TimeTrackerApp extends Application {
     private Clipboard clipboard = Clipboard.getSystemClipboard();
 
     @Override
-    public void start(Stage primaryStage) throws Exception {
+    public void start(Stage primaryStage) {
 
         totalText.textProperty().bind(Bindings.concat("Total : ", total.asString("%.2f")));
 
@@ -52,7 +49,6 @@ public class TimeTrackerApp extends Application {
 
         Button copyBtn = new Button("Copy");
         copyBtn.setOnAction(e -> {
-
             String stringForCopy = createStringForCopy();
             System.out.println(stringForCopy);
             clipboardContent.putString(stringForCopy);
@@ -77,67 +73,27 @@ public class TimeTrackerApp extends Application {
         String rangeString = entriesTable.getChildren()
                 .subList(1, entriesTable.getChildren().size() - 1)
                 .stream()
-                .map(node -> (HBox) node)
-                .map(HBox::getChildren)
-                .map(children -> {
-                    String start = ((TextField) children.get(0)).getText() + ":" + ((TextField) children.get(1)).getText();
-                    String end = ((TextField) children.get(2)).getText() + ":" + ((TextField) children.get(3)).getText();
-                    return start + "\t" + end;
-                }).collect(Collectors.joining("\t"));
+                .map(node -> (Interval) node)
+                .map(Interval::asStringForExcel)
+                .collect(Collectors.joining("\t"));
         return total.getValue().toString().replace(".", ",") + "\t" + rangeString;
     }
 
     private void addCurrentRow() {
-        HBox current = retrieveCurrent();
-        disableInputs(current);
-        double diff = calculateTime(current);
+        Interval current = retrieveCurrent();
+        current.disableInputs();
+        double diff = current.calculateTime();
         total.setValue(total.doubleValue() + diff);
     }
 
-    private double calculateTime(HBox current) {
-        List<Integer> values = current.getChildren()
-                .stream()
-                .map(node -> (TextField) node)
-                .map(TextField::getText)
-                .map(Integer::parseInt)
-                .collect(toList());
-        Integer startHour = values.get(0);
-        Integer startMinute = values.get(1);
-        Integer endHour = values.get(2);
-        Integer endMinute = values.get(3);
-
-        int startMinutes = startHour * 60 + startMinute;
-        int endMinutes = endHour * 60 + endMinute;
-
-        return (double) (endMinutes - startMinutes) / 60;
-    }
-
-    private void disableInputs(HBox current) {
-        current.getChildren().forEach(node -> node.setDisable(true));
-    }
-
-    private HBox retrieveCurrent() {
+    private Interval retrieveCurrent() {
         ObservableList<Node> children = entriesTable.getChildren();
         int lastPos = children.size() - 1;
-        return (HBox) children.get(lastPos);
+        return (Interval) children.get(lastPos);
     }
 
-    void createTimeRow() {
-        TextField startHour = new TextField();
-        startHour.setPrefColumnCount(2);
-
-        TextField startMinute = new TextField();
-        startMinute.setPrefColumnCount(2);
-
-        TextField endHour = new TextField();
-        endHour.setPrefColumnCount(2);
-
-        TextField endMinute = new TextField();
-        endMinute.setPrefColumnCount(2);
-
-        HBox timeRow = new HBox(startHour, startMinute, endHour, endMinute);
-        timeRow.setSpacing(5);
-
-        entriesTable.getChildren().add(timeRow);
+    private void createTimeRow() {
+        Interval interval = new Interval();
+        entriesTable.getChildren().add(interval);
     }
 }
